@@ -1,0 +1,13 @@
+[package]
+name = "github-watchtower"
+version = "0.0.1"
+authors = ["Lukas Pustina <lukas@pustina.de>"]
+edition = "2018"
+description = "Check Run GitHub App ensuring commit are signed by legimit keys"
+repository = "https://github.com/lukaspustina/github-watchtower.git"
+readme = "README.md"
+license = "MIT"
+keywords = ["lambda", "api", "git", "security"]
+categories = ["security"]
+
+[dependencies]
