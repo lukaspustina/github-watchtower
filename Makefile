@@ -1,16 +1,24 @@
+ifdef TARGET
+	TARGET_ARG=--target $(TARGET)
+else
+	TARGET_ARG=
+endif
+
 all: check build test clippy fmt-check
+
+$(info TARGET_ARG="$(TARGET_ARG)")
 
 todos:
 	rg --vimgrep -g '!Makefile' -i todo 
 
 check:
-	cargo check --all --tests --examples
+	cargo check $(TARGET_ARG) --all --tests --examples
 
 build:
-	cargo build --all --tests --examples
+	cargo build $(TARGET_ARG) --all --tests --examples
 
 test:
-	cargo test
+	cargo test $(TARGET_ARG)
 
 clean-package:
 	cargo clean -p $$(cargo read-manifest | jq -r .name)
@@ -27,14 +35,18 @@ fmt-check:
 duplicate_libs:
 	cargo tree -d
 
-_update-clippy_n_fmt:
-	rustup update
-	rustup component add clippy
-	rustup component add rustfmt --toolchain=nightly
-
 _cargo_install:
 	cargo install -f cargo-tree
 	cargo install -f cargo-bump
 
-.PHONY: tests
+_install:
+	@if test $$TARGET; then \
+		echo "Adding rust target $(TARGET)"; \
+		rustup target add $(TARGET); \
+	fi
+	rustup component add clippy
+	rustup toolchain install nightly
+	rustup component add rustfmt --toolchain=nightly
+
+.PHONY: 
 

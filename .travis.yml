@@ -1,0 +1,53 @@
+language: rust
+services: docker
+sudo: required
+
+matrix:
+  include:
+    # Linux
+    - env: TARGET=x86_64-unknown-linux-gnu
+      os: linux
+      dist: bionic
+      rust: 1.35.0
+    - env: TARGET=x86_64-unknown-linux-gnu
+      os: linux
+      dist: bionic
+      rust: stable
+
+    # Linux -- static binary
+    - env: TARGET=x86_64-unknown-linux-musl
+      os: linux
+      dist: bionic
+      rust: stable
+      addons:
+        apt:
+          packages:
+          - musl
+          - musl-dev
+          - musl-tools
+
+    # macOS
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: stable
+
+    # Testing for future releases of Rust
+    - env: TARGET=x86_64-unknown-linux-gnu
+      os: linux
+      dist: bionic
+      rust: beta
+    - env: TARGET=x86_64-unknown-linux-gnu
+      os: linux
+      dist: bionic
+      rust: nightly
+
+  allow_failures:
+    - rust: beta
+    - rust: nightly
+
+before_script:
+  make _install
+
+script:
+  make
+
