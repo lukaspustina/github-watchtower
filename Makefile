@@ -20,6 +20,10 @@ build:
 test:
 	cargo test $(TARGET_ARG)
 
+test-all:
+	cargo test $(TARGET_ARG)
+	cargo test $(TARGET_ARG) -- --ignored
+
 clean-package:
 	cargo clean -p $$(cargo read-manifest | jq -r .name)
 
