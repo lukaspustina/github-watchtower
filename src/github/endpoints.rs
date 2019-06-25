@@ -11,26 +11,26 @@ use std::collections::HashMap;
 pub type Endpoints = HashMap<String, String>;
 
 pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
-        let OAuthToken(ref token) = client.oauth_token;
-        let request = client.http
-            .get("https://api.github.com/")
-            .bearer_auth(token);
-        debug!("Request: '{:#?}'", request);
+    let OAuthToken(ref token) = client.oauth_token;
+    let request = client.http
+        .get("https://api.github.com/")
+        .bearer_auth(token);
+    debug!("Request: '{:#?}'", request);
 
-        let mut response: Response = request
-            .send()
-            .map_err(|e| e.context(ErrorKind::HttpRequestFailed))?
-            .general_err_handler(StatusCode::OK)?;
-        debug!("Response: '{:#?}'", response);
+    let mut response: Response = request
+        .send()
+        .map_err(|e| e.context(ErrorKind::HttpRequestFailed))?
+        .general_err_handler(StatusCode::OK)?;
+    debug!("Response: '{:#?}'", response);
 
-        let result = response.json().map_err(|e| {
-            e.context(ErrorKind::FailedToProcessHttpResponse(
-                response.status(),
-                "reading body".to_string(),
-            ))
-        })?;
+    let result = response.json().map_err(|e| {
+        e.context(ErrorKind::FailedToProcessHttpResponse(
+            response.status(),
+            "reading body".to_string(),
+        ))
+    })?;
 
-        Ok(result)
+    Ok(result)
 }
 
 #[cfg(test)]
