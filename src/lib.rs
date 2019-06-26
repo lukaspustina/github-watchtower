@@ -1,4 +1,4 @@
-mod errors;
-mod github;
+pub mod errors;
+pub mod github;
 mod utils;
 

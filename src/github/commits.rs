@@ -296,23 +296,4 @@ mod tests {
 
         assert_that(&endpoints).is_ok().has_length(1);
     }
-
-    #[test]
-    #[ignore]
-    fn github_commits() {
-        test::init();
-
-        let token = env::var_os("GITHUB_TOKEN")
-            .expect("Environment variable 'GITHUB_TOKEN' is not set.")
-            .to_string_lossy()
-            .to_string();
-
-        let token = OAuthToken(token);
-        let client = Client::with_oauth_token(&token);
-
-        let repository = Repository::new("lukaspustina", "github-watchtower");
-        let endpoints = client.commits(&repository);
-
-        asserting("there are commits").that(&endpoints).is_ok().matches(|x| x.len() > 0)
-    }
 }

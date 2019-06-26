@@ -31,7 +31,7 @@ pub struct AuthorizedClient<'a> {
 }
 
 #[derive(Debug)]
-pub struct OAuthToken(String);
+pub struct OAuthToken(pub String);
 
 #[derive(Debug)]
 pub struct Repository<'a> {
