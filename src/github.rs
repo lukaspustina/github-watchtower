@@ -1,16 +1,16 @@
 use crate::errors::*;
 
-use failure::Fail;
-use log::debug;
-use reqwest::{self, Response, StatusCode};
+use reqwest;
 
-mod commits;
-mod endpoints;
+pub mod commits;
+pub mod endpoints;
 
 pub use commits::{
     Commit,
 };
 pub use endpoints::Endpoints;
+
+use commits::Params;
 
 #[derive(Debug)]
 pub struct Client {}
@@ -49,13 +49,13 @@ impl<'a> Repository<'a> {
 }
 
 pub trait GitHub {
-    fn commits(&self, repository: &Repository) -> Result<Vec<Commit>>;
+    fn commits<T: Into<Option<Params>>>(&self, repository: &Repository, params: T) -> Result<Vec<Commit>>;
     fn endpoints(&self) -> Result<Endpoints>;
 }
 
 impl<'a> GitHub for AuthorizedClient<'a> {
-    fn commits(&self, repository: &Repository) -> Result<Vec<Commit>> {
-        commits::commits(self, repository, None)
+    fn commits<T: Into<Option<Params>>>(&self, repository: &Repository, params: T) -> Result<Vec<Commit>> {
+        commits::commits(self, repository, params)
     }
 
     fn endpoints(&self) -> Result<Endpoints> {

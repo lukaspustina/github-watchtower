@@ -2,13 +2,21 @@ use crate::errors::*;
 use crate::github::{AuthorizedClient, Client, OAuthToken, Repository};
 use crate::utils::http::GeneralErrHandler;
 
+use chrono::{DateTime, FixedOffset};
 use failure::Fail;
 use log::debug;
 use reqwest::{self, header, Response, StatusCode};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Sha(String);
+
+impl Sha {
+    pub fn new<T: Into<String>>(sha: T) -> Sha {
+        Sha(sha.into())
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Commit {
@@ -29,8 +37,7 @@ pub struct CommitDetail {
 pub struct PersonDetails {
     name: String,
     email: String,
-    // TODO: Make me a chrono date
-    date: String,
+    date: DateTime<FixedOffset>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,15 +49,95 @@ pub struct Verification {
     payload: Option<String>,
 }
 
+/// Parameters to filter the commits returned by GitHub
+///
+/// See https://developer.github.com/v3/repos/commits/
+/// Attention: from means "all commits until this"; cf. GitHub documentation.
+#[derive(Debug, Default, Serialize)]
+pub struct Params {
+    from: Option<Sha>,
+    path: Option<String>,
+    author: Option<String>,
+    since: Option<DateTime<FixedOffset>>,
+    until: Option<DateTime<FixedOffset>>,
+}
+
+impl Params {
+    pub fn new() -> Params {
+        Default::default()
+    }
+
+    pub fn from(self, from: Sha) -> Params {
+        Params {
+            from: from.into(),
+            ..self
+        }
+    }
+
+    pub fn path(self, path: String) -> Params {
+        Params {
+            path: path.into(),
+            ..self
+        }
+    }
+
+    pub fn author(self, author: String) -> Params {
+        Params {
+            author: author.into(),
+            ..self
+        }
+    }
+
+    pub fn since(self, since: DateTime<FixedOffset>) -> Params {
+        Params {
+            since: since.into(),
+            ..self
+        }
+    }
+
+    pub fn until(self, until: DateTime<FixedOffset>) -> Params {
+        Params {
+            until: until.into(),
+            ..self
+        }
+    }
+}
+
+impl From<Params> for HashMap<&'static str, String> {
+    fn from(p: Params) -> HashMap<&'static str, String> {
+        let mut map = HashMap::new();
+
+        if let Some(sha) = p.from {
+            let Sha(sha) = sha;
+            map.insert("sha", sha);
+        }
+        if let Some(path) = p.path {
+            map.insert("path", path);
+        }
+        if let Some(author) = p.author {
+            map.insert("author", author);
+        }
+        if let Some(since) = p.since {
+            map.insert("since", since.to_string());
+        }
+        if let Some(until) = p.until {
+            map.insert("until", until.to_string());
+        }
+
+        map
+    }
+}
+
 /// Get Commits -- ATTENTION: Currently paging is not supported
-pub(crate) fn commits<T: Into<Option<Sha>>>(client: &AuthorizedClient, repository: &Repository, from: T) -> Result<Vec<Commit>> {
-    let from: Option<Sha> = from.into();
+pub(crate) fn commits<T: Into<Option<Params>>>(client: &AuthorizedClient, repository: &Repository, params: T) -> Result<Vec<Commit>> {
+    let params: Option<HashMap<_,_>> = params.into().map(From::from);
     let OAuthToken(ref token) = client.oauth_token;
 
     let url = format!("https://api.github.com/repos/{owner}/{repository}/commits", owner = repository.owner, repository = repository.name);
 
     let request = client.http
         .get(&url)
+        .query(&params)
         .header(header::ACCEPT, "Accept: application/vnd.github.v3+json".as_bytes())
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
