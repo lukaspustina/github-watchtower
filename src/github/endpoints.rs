@@ -4,8 +4,7 @@ use crate::utils::http::GeneralErrHandler;
 
 use failure::Fail;
 use log::debug;
-use reqwest::{self, Response, StatusCode};
-use serde_json;
+use reqwest::{self, header, Response, StatusCode};
 use std::collections::HashMap;
 
 pub type Endpoints = HashMap<String, String>;
@@ -14,6 +13,7 @@ pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
     let OAuthToken(ref token) = client.oauth_token;
     let request = client.http
         .get("https://api.github.com/")
+        .header(header::ACCEPT, "Accept: application/vnd.github.v3+json".as_bytes())
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
 
@@ -37,12 +37,16 @@ pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
 mod tests {
     use super::*;
     use crate::github::GitHub;
+    use crate::utils::test;
 
+    use serde_json;
     use spectral::prelude::*;
     use std::env;
 
     #[test]
     fn deserialize_endpoints() {
+        test::init();
+
         let endpoints_json = r#"
             {
                 "current_user_url": "https://api.github.com/user",
@@ -87,6 +91,8 @@ mod tests {
     #[test]
     #[ignore]
     fn github_endpoints() {
+        test::init();
+
         let token = env::var_os("GITHUB_TOKEN")
             .expect("Environment variable 'GITHUB_TOKEN' is not set.")
             .to_string_lossy()

@@ -41,3 +41,12 @@ pub(crate) mod http {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test {
+    use env_logger;
+
+    pub(crate) fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+}
