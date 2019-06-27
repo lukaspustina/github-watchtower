@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, Client, OAuthToken},
+    github::{AuthorizedClient, OAuthToken},
     utils::http::GeneralErrHandler,
 };
 
@@ -42,11 +42,10 @@ pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{github::GitHub, utils::test};
+    use crate::utils::test;
 
     use serde_json;
     use spectral::prelude::*;
-    use std::env;
 
     #[test]
     fn deserialize_endpoints() {

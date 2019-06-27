@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, Client, OAuthToken, Repository},
+    github::{AuthorizedClient, OAuthToken, Repository},
     utils::http::GeneralErrHandler,
 };
 
@@ -191,11 +191,10 @@ pub(crate) fn commits<T: Into<Option<Params>>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{github::GitHub, utils::test};
+    use crate::utils::test;
 
     use serde_json;
     use spectral::prelude::*;
-    use std::env;
 
     #[test]
     fn deserialize_commits() {
