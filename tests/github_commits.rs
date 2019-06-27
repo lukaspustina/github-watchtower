@@ -46,20 +46,17 @@ fn github_commits_from_sha() {
 
     let repository = Repository::new("lukaspustina", "github-watchtower");
 
-    let all_commits = client
-        .commits(&repository, None)
-        .expect("Failed to retrieve all commits");
     let params = Params::new().from(Sha::new("10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca"));
-    let from_commits = client
+    let commits = client
         .commits(&repository, params)
         .expect("Failed to retrieve commits from '10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca'");
-    let diff = all_commits.len() - from_commits.len();
 
-    debug!("From: {:#?}", from_commits);
+    debug!("From: {:#?}", commits);
 
-    asserting("number of commits differ by one")
-        .that(&diff)
-        .is_equal_to(&4);
+    let amount = commits.len();
+    asserting("number of commit is 3")
+        .that(&amount)
+        .is_equal_to(&3);
 }
 
 #[test]
