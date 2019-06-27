@@ -1,8 +1,4 @@
-use github_watchtower::github::{
-    Client,
-    GitHub,
-    OAuthToken,
-};
+use github_watchtower::github::{Client, GitHub, OAuthToken};
 
 use env_logger;
 use spectral::prelude::*;
@@ -25,4 +21,3 @@ fn github_endpoints() {
 
     assert_that(&endpoints).is_ok().has_length(31);
 }
-

@@ -1,6 +1,8 @@
-use crate::errors::*;
-use crate::github::{AuthorizedClient, Client, OAuthToken, Repository};
-use crate::utils::http::GeneralErrHandler;
+use crate::{
+    errors::*,
+    github::{AuthorizedClient, Client, OAuthToken, Repository},
+    utils::http::GeneralErrHandler,
+};
 
 use chrono::{DateTime, FixedOffset};
 use failure::Fail;
@@ -30,7 +32,6 @@ pub struct CommitDetail {
     committer: PersonDetails,
     message: String,
     verification: Verification,
-
 }
 
 #[derive(Debug, Deserialize)]
@@ -129,16 +130,28 @@ impl From<Params> for HashMap<&'static str, String> {
 }
 
 /// Get Commits -- ATTENTION: Currently paging is not supported
-pub(crate) fn commits<T: Into<Option<Params>>>(client: &AuthorizedClient, repository: &Repository, params: T) -> Result<Vec<Commit>> {
-    let params: Option<HashMap<_,_>> = params.into().map(From::from);
+pub(crate) fn commits<T: Into<Option<Params>>>(
+    client: &AuthorizedClient,
+    repository: &Repository,
+    params: T,
+) -> Result<Vec<Commit>> {
+    let params: Option<HashMap<_, _>> = params.into().map(From::from);
     let OAuthToken(ref token) = client.oauth_token;
 
-    let url = format!("https://api.github.com/repos/{owner}/{repository}/commits", owner = repository.owner, repository = repository.name);
+    let url = format!(
+        "https://api.github.com/repos/{owner}/{repository}/commits",
+        owner = repository.owner,
+        repository = repository.name
+    );
 
-    let request = client.http
+    let request = client
+        .http
         .get(&url)
         .query(&params)
-        .header(header::ACCEPT, "Accept: application/vnd.github.v3+json".as_bytes())
+        .header(
+            header::ACCEPT,
+            "Accept: application/vnd.github.v3+json".as_bytes(),
+        )
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
 
@@ -161,8 +174,7 @@ pub(crate) fn commits<T: Into<Option<Params>>>(client: &AuthorizedClient, reposi
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::github::GitHub;
-    use crate::utils::test;
+    use crate::{github::GitHub, utils::test};
 
     use serde_json;
     use spectral::prelude::*;

@@ -1,6 +1,8 @@
-use crate::errors::*;
-use crate::github::{AuthorizedClient, Client, OAuthToken};
-use crate::utils::http::GeneralErrHandler;
+use crate::{
+    errors::*,
+    github::{AuthorizedClient, Client, OAuthToken},
+    utils::http::GeneralErrHandler,
+};
 
 use failure::Fail;
 use log::debug;
@@ -11,9 +13,13 @@ pub type Endpoints = HashMap<String, String>;
 
 pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
     let OAuthToken(ref token) = client.oauth_token;
-    let request = client.http
+    let request = client
+        .http
         .get("https://api.github.com/")
-        .header(header::ACCEPT, "Accept: application/vnd.github.v3+json".as_bytes())
+        .header(
+            header::ACCEPT,
+            "Accept: application/vnd.github.v3+json".as_bytes(),
+        )
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
 
@@ -36,8 +42,7 @@ pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::github::GitHub;
-    use crate::utils::test;
+    use crate::{github::GitHub, utils::test};
 
     use serde_json;
     use spectral::prelude::*;

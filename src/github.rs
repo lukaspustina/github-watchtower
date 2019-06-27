@@ -5,9 +5,7 @@ use reqwest;
 pub mod commits;
 pub mod endpoints;
 
-pub use commits::{
-    Commit,
-};
+pub use commits::Commit;
 pub use endpoints::Endpoints;
 
 use commits::Params;
@@ -17,7 +15,7 @@ pub struct Client {}
 
 impl Client {
     pub fn with_oauth_token(oauth_token: &OAuthToken) -> AuthorizedClient {
-        AuthorizedClient{
+        AuthorizedClient {
             oauth_token,
             http: reqwest::Client::new(),
         }
@@ -41,20 +39,25 @@ pub struct Repository<'a> {
 
 impl<'a> Repository<'a> {
     pub fn new(owner: &'a str, name: &'a str) -> Repository<'a> {
-        Repository {
-            owner,
-            name,
-        }
+        Repository { owner, name }
     }
 }
 
 pub trait GitHub {
-    fn commits<T: Into<Option<Params>>>(&self, repository: &Repository, params: T) -> Result<Vec<Commit>>;
+    fn commits<T: Into<Option<Params>>>(
+        &self,
+        repository: &Repository,
+        params: T,
+    ) -> Result<Vec<Commit>>;
     fn endpoints(&self) -> Result<Endpoints>;
 }
 
 impl<'a> GitHub for AuthorizedClient<'a> {
-    fn commits<T: Into<Option<Params>>>(&self, repository: &Repository, params: T) -> Result<Vec<Commit>> {
+    fn commits<T: Into<Option<Params>>>(
+        &self,
+        repository: &Repository,
+        params: T,
+    ) -> Result<Vec<Commit>> {
         commits::commits(self, repository, params)
     }
 
@@ -62,4 +65,3 @@ impl<'a> GitHub for AuthorizedClient<'a> {
         endpoints::endpoints(self)
     }
 }
-

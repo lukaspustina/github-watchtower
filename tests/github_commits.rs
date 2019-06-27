@@ -1,12 +1,6 @@
 use github_watchtower::github::{
-    Client,
-    GitHub,
-    OAuthToken,
-    Repository,
-    commits::{
-        Params,
-        Sha,
-    }
+    commits::{Params, Sha},
+    Client, GitHub, OAuthToken, Repository,
 };
 
 use chrono::prelude::*;
@@ -31,7 +25,10 @@ fn github_commits() {
     let repository = Repository::new("lukaspustina", "github-watchtower");
     let commits = client.commits(&repository, None);
 
-    asserting("there are commits").that(&commits).is_ok().matches(|x| x.len() > 0);
+    asserting("there are commits")
+        .that(&commits)
+        .is_ok()
+        .matches(|x| x.len() > 0);
 }
 
 #[test]
@@ -49,14 +46,20 @@ fn github_commits_from_sha() {
 
     let repository = Repository::new("lukaspustina", "github-watchtower");
 
-    let all_commits = client.commits(&repository, None).expect("Failed to retrieve all commits");
+    let all_commits = client
+        .commits(&repository, None)
+        .expect("Failed to retrieve all commits");
     let params = Params::new().from(Sha::new("10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca"));
-    let from_commits = client.commits(&repository, params).expect("Failed to retrieve commits from '10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca'");
+    let from_commits = client
+        .commits(&repository, params)
+        .expect("Failed to retrieve commits from '10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca'");
     let diff = all_commits.len() - from_commits.len();
 
     debug!("From: {:#?}", from_commits);
 
-    asserting("number of commits differ by one").that(&diff).is_equal_to(&4);
+    asserting("number of commits differ by one")
+        .that(&diff)
+        .is_equal_to(&4);
 }
 
 #[test]
@@ -74,12 +77,19 @@ fn github_commits_since() {
 
     let repository = Repository::new("lukaspustina", "github-watchtower");
 
-    let all_commits = client.commits(&repository, None).expect("Failed to retrieve all commits");
-    let params = Params::new().since(DateTime::parse_from_rfc2822("Wed, 26 Jun 2019 09:36:26 +0200").unwrap());
-    let since_commits = client.commits(&repository, params).expect("Failed to retrieve commits from 'Wed Jun 26 09:36:26 2019 +0200'");
+    let all_commits = client
+        .commits(&repository, None)
+        .expect("Failed to retrieve all commits");
+    let params = Params::new()
+        .since(DateTime::parse_from_rfc2822("Wed, 26 Jun 2019 09:36:26 +0200").unwrap());
+    let since_commits = client
+        .commits(&repository, params)
+        .expect("Failed to retrieve commits from 'Wed Jun 26 09:36:26 2019 +0200'");
     let diff = all_commits.len() - since_commits.len();
 
-    asserting("number of commits is less than total number").that(&diff).is_equal_to(&4);
+    asserting("number of commits is less than total number")
+        .that(&diff)
+        .is_equal_to(&4);
 }
 
 #[test]
@@ -97,10 +107,14 @@ fn github_commits_until() {
 
     let repository = Repository::new("lukaspustina", "github-watchtower");
 
-    let params = Params::new().until(DateTime::parse_from_rfc2822("Tue, 25 Jun 2019 14:56:32 +0200").unwrap());
-    let commits = client.commits(&repository, params).expect("Failed to retrieve commits from 'Wed Jun 26 09:36:26 2019 +0200'");
+    let params = Params::new()
+        .until(DateTime::parse_from_rfc2822("Tue, 25 Jun 2019 14:56:32 +0200").unwrap());
+    let commits = client
+        .commits(&repository, params)
+        .expect("Failed to retrieve commits from 'Wed Jun 26 09:36:26 2019 +0200'");
     let amount = commits.len();
 
-    asserting("number of commits is less than total number").that(&amount).is_equal_to(&4);
+    asserting("number of commits is less than total number")
+        .that(&amount)
+        .is_equal_to(&4);
 }
-
