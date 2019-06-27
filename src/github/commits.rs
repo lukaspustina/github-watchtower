@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, GITHUB_ACCEPT_HEADER, OAuthToken, Repository},
+    github::{AuthorizedClient, OAuthToken, Repository, GITHUB_ACCEPT_HEADER},
     utils::http::GeneralErrHandler,
 };
 
@@ -166,10 +166,7 @@ pub(crate) fn commits<T: Into<Option<Params>>>(
         .http
         .get(&url)
         .query(&params)
-        .header(
-            header::ACCEPT,
-            GITHUB_ACCEPT_HEADER
-        )
+        .header(header::ACCEPT, GITHUB_ACCEPT_HEADER)
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
 

@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, GITHUB_ACCEPT_HEADER, OAuthToken},
+    github::{AuthorizedClient, OAuthToken, GITHUB_ACCEPT_HEADER},
     utils::http::GeneralErrHandler,
 };
 
@@ -16,10 +16,7 @@ pub(crate) fn endpoints(client: &AuthorizedClient) -> Result<Endpoints> {
     let request = client
         .http
         .get("https://api.github.com/")
-        .header(
-            header::ACCEPT,
-            GITHUB_ACCEPT_HEADER
-        )
+        .header(header::ACCEPT, GITHUB_ACCEPT_HEADER)
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
 

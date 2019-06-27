@@ -12,7 +12,6 @@ use commits::Params;
 
 static GITHUB_ACCEPT_HEADER: &[u8] = b"Accept: application/vnd.github.v3+json";
 
-
 #[derive(Debug)]
 pub struct Client {}
 
