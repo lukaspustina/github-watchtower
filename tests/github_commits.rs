@@ -28,7 +28,7 @@ fn github_commits() {
     asserting("there are commits")
         .that(&commits)
         .is_ok()
-        .matches(|x| x.len() > 0);
+        .matches(|x| !x.is_empty());
 }
 
 #[test]

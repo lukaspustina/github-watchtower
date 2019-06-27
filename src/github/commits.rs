@@ -1,6 +1,6 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, OAuthToken, Repository},
+    github::{AuthorizedClient, GITHUB_ACCEPT_HEADER, OAuthToken, Repository},
     utils::http::GeneralErrHandler,
 };
 
@@ -121,6 +121,7 @@ impl Params {
     }
 }
 
+#[allow(clippy::implicit_hasher)]
 impl From<Params> for HashMap<&'static str, String> {
     fn from(p: Params) -> HashMap<&'static str, String> {
         let mut map = HashMap::new();
@@ -167,7 +168,7 @@ pub(crate) fn commits<T: Into<Option<Params>>>(
         .query(&params)
         .header(
             header::ACCEPT,
-            "Accept: application/vnd.github.v3+json".as_bytes(),
+            GITHUB_ACCEPT_HEADER
         )
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
