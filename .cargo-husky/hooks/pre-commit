@@ -1,0 +1,7 @@
+#!/bin/sh
+echo "Running pre-commit hook"
+
+echo "Debug: $(which make)"
+
+make clippy fmt && echo "All good."
+
