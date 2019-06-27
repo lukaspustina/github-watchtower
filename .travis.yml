@@ -45,6 +45,9 @@ matrix:
     - rust: beta
     - rust: nightly
 
+before_install:
+  if [[ $TARGET == "x86_64-unknown-linux-musl" ]]; then sudo apt-get install musl musl-dev musl-tools; fi
+
 before_script:
   make _install
 
