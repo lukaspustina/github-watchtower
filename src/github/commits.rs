@@ -41,11 +41,28 @@ pub struct PersonDetails {
     date: DateTime<FixedOffset>,
 }
 
+#[derive(Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Reason {
+    ExpiredKey,
+    NotSigningKey,
+    GpgverifyError,
+    GpgverifyUnavailable,
+    Unsigned,
+    UnknownSignatureType,
+    NoUser,
+    UnverifiedEmail,
+    BadEmail,
+    UnknownKey,
+    MalformedSignature,
+    Invalid,
+    Valid,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Verification {
     verified: bool,
-    // TODO: make me an enum
-    reason: String,
+    reason: Reason,
     signature: Option<String>,
     payload: Option<String>,
 }
