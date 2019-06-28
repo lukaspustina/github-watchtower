@@ -42,6 +42,7 @@ matrix:
       rust: nightly
 
   allow_failures:
+    - env: TARGET=x86_64-unknown-linux-musl
     - rust: beta
     - rust: nightly
 
