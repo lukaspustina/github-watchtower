@@ -61,6 +61,36 @@ fn github_commits_from_sha() {
 
 #[test]
 #[ignore]
+fn github_commits_from_sha_to_sha() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    let token = env::var_os("GITHUB_TOKEN")
+        .expect("Environment variable 'GITHUB_TOKEN' is not set.")
+        .to_string_lossy()
+        .to_string();
+
+    let token = OAuthToken(token);
+    let client = Client::with_oauth_token(&token);
+
+    let repository = Repository::new("lukaspustina", "github-watchtower");
+
+    let params = Params::new()
+        .from(Sha::new("a01d2a79a8a0e740e81ae2a0de31362219b33f50"))
+        .to(Sha::new("10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca"));
+    let commits = client
+        .commits(&repository, params)
+        .expect("Failed to retrieve commits from '10b1bf9f34fcab001615cb6a9fa7b3ca71d7d5ca'");
+
+    debug!("From: {:#?}", commits);
+
+    let amount = commits.len();
+    asserting("number of commit is 4")
+        .that(&amount)
+        .is_equal_to(&4);
+}
+
+#[test]
+#[ignore]
 fn github_commits_since() {
     let _ = env_logger::builder().is_test(true).try_init();
 

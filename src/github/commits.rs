@@ -11,7 +11,7 @@ use reqwest::{self, header, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Sha(String);
 
 impl Sha {
@@ -70,10 +70,11 @@ pub struct Verification {
 /// Parameters to filter the commits returned by GitHub
 ///
 /// See https://developer.github.com/v3/repos/commits/
-/// Attention: from means "all commits until this"; cf. GitHub documentation.
+/// Attention: from means "all commits until this"; cf. GitHub documentation, Parameters, "sha"
 #[derive(Debug, Default, Serialize)]
 pub struct Params {
     from: Option<Sha>,
+    to: Option<Sha>,
     path: Option<String>,
     author: Option<String>,
     since: Option<DateTime<FixedOffset>>,
@@ -88,6 +89,13 @@ impl Params {
     pub fn from(self, from: Sha) -> Params {
         Params {
             from: from.into(),
+            ..self
+        }
+    }
+
+    pub fn to(self, to: Sha) -> Params {
+        Params {
+            to: to.into(),
             ..self
         }
     }
@@ -122,24 +130,24 @@ impl Params {
 }
 
 #[allow(clippy::implicit_hasher)]
-impl From<Params> for HashMap<&'static str, String> {
-    fn from(p: Params) -> HashMap<&'static str, String> {
+impl From<&Params> for HashMap<&'static str, String> {
+    fn from(p: &Params) -> HashMap<&'static str, String> {
         let mut map = HashMap::new();
 
-        if let Some(sha) = p.from {
+        if let Some(ref sha) = p.from {
             let Sha(sha) = sha;
-            map.insert("sha", sha);
+            map.insert("sha", sha.clone());
         }
-        if let Some(path) = p.path {
-            map.insert("path", path);
+        if let Some(ref path) = p.path {
+            map.insert("path", path.clone());
         }
-        if let Some(author) = p.author {
-            map.insert("author", author);
+        if let Some(ref author) = p.author {
+            map.insert("author", author.clone());
         }
-        if let Some(since) = p.since {
+        if let Some(ref since) = p.since {
             map.insert("since", since.to_string());
         }
-        if let Some(until) = p.until {
+        if let Some(ref until) = p.until {
             map.insert("until", until.to_string());
         }
 
@@ -153,7 +161,38 @@ pub(crate) fn commits<T: Into<Option<Params>>>(
     repository: &Repository,
     params: T,
 ) -> Result<Vec<Commit>> {
-    let params: Option<HashMap<_, _>> = params.into().map(From::from);
+    let params_opt: Option<_> = params.into();
+    let commits = do_commits(client, repository, params_opt.as_ref())?;
+    let commits = filter_to(commits, params_opt);
+
+    Ok(commits)
+}
+
+/// Filter commits if `to` is set else just return passed commits
+fn filter_to(commits: Vec<Commit>, params_opt: Option<Params>) -> Vec<Commit> {
+    if let Some(p) = params_opt {
+        if let Some(to) = p.to {
+            let mut v = Vec::new();
+            for c in commits.into_iter() {
+                if c.sha == to {
+                    v.push(c);
+                    break;
+                } else {
+                    v.push(c);
+                }
+            }
+            return v;
+        }
+    }
+    commits
+}
+
+fn do_commits(
+    client: &AuthorizedClient,
+    repository: &Repository,
+    params: Option<&Params>,
+) -> Result<Vec<Commit>> {
+    let query_params: Option<HashMap<_, _>> = params.map(From::from);
     let OAuthToken(ref token) = client.oauth_token;
 
     let url = format!(
@@ -165,7 +204,7 @@ pub(crate) fn commits<T: Into<Option<Params>>>(
     let request = client
         .http
         .get(&url)
-        .query(&params)
+        .query(&query_params)
         .header(header::ACCEPT, GITHUB_ACCEPT_HEADER)
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
@@ -176,7 +215,7 @@ pub(crate) fn commits<T: Into<Option<Params>>>(
         .general_err_handler(StatusCode::OK)?;
     debug!("Response: '{:#?}'", response);
 
-    let result = response.json().map_err(|e| {
+    let result: Vec<Commit> = response.json().map_err(|e| {
         e.context(ErrorKind::FailedToProcessHttpResponse(
             response.status(),
             "reading body".to_string(),
