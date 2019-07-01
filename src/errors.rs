@@ -30,6 +30,15 @@ pub enum ErrorKind {
 
     #[fail(display = "API call failed with status code = {}, '{}'", _0, _1)]
     ApiCallFailed(StatusCode, String),
+
+    #[fail(display = "failed to load GPG key")]
+    FailedToLoadKey,
+
+    #[fail(display = "failed to create GPG signature verifyier")]
+    FailedToCreateVerifier,
+
+    #[fail(display = "failed to verify GPG signature")]
+    FailedToVerify,
 }
 
 impl Clone for ErrorKind {
@@ -46,6 +55,9 @@ impl Clone for ErrorKind {
                 FailedToProcessHttpResponse(*status_code, body.clone())
             }
             FailedToPrepareHttpRequest(ref s) => FailedToPrepareHttpRequest(s.clone()),
+            FailedToLoadKey => FailedToLoadKey,
+            FailedToCreateVerifier => FailedToCreateVerifier,
+            FailedToVerify => FailedToVerify,
         }
     }
 }
