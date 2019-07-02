@@ -6,8 +6,10 @@ matrix:
     # Linux
     - env: TARGET=x86_64-unknown-linux-gnu
       os: linux
-      dist: trusty
+      dist: bionic
       rust: 1.35.0
+      before_install:
+        sudo apt-get install -y nettle-dev
     - env: TARGET=x86_64-unknown-linux-gnu
       os: linux
       dist: bionic
@@ -18,12 +20,8 @@ matrix:
       os: linux
       dist: bionic
       rust: stable
-      addons:
-        apt:
-          packages:
-            - musl
-            - musl-dev
-            - musl-tools
+      before_install:
+        if [[ $TARGET == "x86_64-unknown-linux-musl" ]]; then sudo apt-get -y install musl musl-dev musl-tools; fi
 
     # macOS
     - env: TARGET=x86_64-apple-darwin
@@ -44,15 +42,6 @@ matrix:
     - env: TARGET=x86_64-unknown-linux-musl
     - rust: beta
     - rust: nightly
-
-addons:
-  apt:
-    packages:
-      - nettle
-      - nettle-dev
-
-before_install:
-  #if [[ $TARGET == "x86_64-unknown-linux-musl" ]]; then sudo apt-get install musl musl-dev musl-tools; fi
 
 before_script:
   make _install
