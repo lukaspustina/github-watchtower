@@ -1,6 +1,3 @@
-language: rust
-services: docker
-sudo: required
 
 addons:
   apt:
