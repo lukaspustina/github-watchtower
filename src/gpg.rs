@@ -1,6 +1,7 @@
 use crate::errors::*;
 
 use failure::Fail;
+use log::{debug, trace};
 use openpgp::{
     parse::{stream::*, Parse},
     TPK,
@@ -11,6 +12,35 @@ use std::{io, path::Path};
 #[derive(Debug)]
 pub struct CommitVerifier {
     pub_keys: Vec<TPK>,
+}
+
+#[derive(Debug)]
+pub struct VerificationKey {
+    finger_print: String,
+    key_id: String,
+    e_mails: Vec<String>,
+}
+
+impl From<TPK> for VerificationKey {
+    fn from(tpk: TPK) -> VerificationKey {
+        let finger_print = tpk.fingerprint().to_string();
+        let key_id = tpk.fingerprint().to_keyid().to_string();
+        let e_mails = tpk
+            .userids()
+            .map(|x| {
+                x.userid()
+                    .other_or_address()
+                    .unwrap_or_else(|_| Some("<unknnow>".to_string()))
+            })
+            .flatten()
+            .collect();
+
+        VerificationKey {
+            finger_print,
+            key_id,
+            e_mails,
+        }
+    }
 }
 
 impl CommitVerifier {
@@ -36,21 +66,53 @@ impl CommitVerifier {
     }
 }
 
+// I really don't like this side effect way to do things, but there doesn't seem to be another way
+// to get the signature key out of `DetachedVerifier`. At least, the side effect is locally isolated
+// in this method only.
 impl CommitVerifier {
-    pub fn verify_signature(self, message: &[u8], signature: &[u8]) -> Result<()> {
+    pub fn verify_signature(&self, message: &[u8], signature: &[u8]) -> Result<VerificationKey> {
+        let mut result_key: Vec<TPK> = Vec::new();
         let mut buffer = Vec::new();
-        let mut verifier = DetachedVerifier::from_bytes(signature, message, self, None)
+        let vc = VerificationContext::new(&self.pub_keys, &mut result_key);
+        let mut verifier = DetachedVerifier::from_bytes(signature, message, vc, None)
             .map_err(|e| e.context(ErrorKind::FailedToCreateVerifier))?;
         // Verify the data.
-        io::copy(&mut verifier, &mut buffer).map_err(|e| e.context(ErrorKind::FailedToVerify))?;
+        io::copy(&mut verifier, &mut buffer).map_err(|e| {
+            e.context(ErrorKind::FailedToVerify(
+                "signature could not be verified".to_string(),
+            ))
+        })?;
 
-        Ok(())
+        let tpk = result_key.pop().ok_or_else(|| {
+            Error::from(ErrorKind::FailedToVerify(
+                "no key found; this should not happen".to_string(),
+            ))
+        })?;
+
+        let key = tpk.into();
+        debug!("Message successfully verified with key {:?}", key);
+
+        Ok(key)
     }
 }
 
-impl VerificationHelper for CommitVerifier {
+struct VerificationContext<'a> {
+    pub_keys: &'a [TPK],
+    result_key: &'a mut Vec<TPK>,
+}
+
+impl<'a> VerificationContext<'a> {
+    pub fn new(pub_keys: &'a [TPK], result_key: &'a mut Vec<TPK>) -> VerificationContext<'a> {
+        VerificationContext {
+            pub_keys,
+            result_key,
+        }
+    }
+}
+
+impl<'a> VerificationHelper for VerificationContext<'a> {
     fn get_public_keys(&mut self, _ids: &[openpgp::KeyID]) -> openpgp::Result<Vec<openpgp::TPK>> {
-        Ok(self.pub_keys.clone())
+        Ok(self.pub_keys.to_vec())
     }
 
     fn check(&mut self, structure: &MessageStructure) -> openpgp::Result<()> {
@@ -64,7 +126,11 @@ impl VerificationHelper for CommitVerifier {
                     // Finally, given a VerificationResult, which only says
                     // whether the signature checks out mathematically, we apply our policy.
                     match results.get(0) {
-                        Some(VerificationResult::GoodChecksum(..)) => good = true,
+                        Some(VerificationResult::GoodChecksum(_, tpk, _, _, _)) => {
+                            trace!("Verfified with key: {:#?}", tpk);
+                            self.result_key.push((*tpk).clone());
+                            good = true;
+                        }
                         Some(VerificationResult::MissingKey(_)) => {
                             return Err(failure::err_msg("Missing key to verify signature"))
                         }
@@ -89,12 +155,15 @@ impl VerificationHelper for CommitVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::test;
 
     use log::debug;
     use spectral::prelude::*;
 
     #[test]
     fn load_key() {
+        test::init();
+
         let cv = CommitVerifier::from_key_file("tests/lukas.pustina.pub");
 
         asserting("Valid key has been successfully loaded")
@@ -104,6 +173,8 @@ mod tests {
 
     #[test]
     fn verify_static() {
+        test::init();
+
         let signature = r#"-----BEGIN PGP SIGNATURE-----
 Comment: GPGTools - http://gpgtools.org
 
@@ -132,8 +203,8 @@ Github: add list endpoints
             .expect("failed to load public key");
 
         let res = cv.verify_signature(payload.as_ref(), signature.as_ref());
-        debug!("Result: {:#?}", res);
 
+        debug!("Res: {:#?}", res);
         asserting("Signature is valid").that(&res).is_ok();
     }
 }
