@@ -22,23 +22,23 @@ impl Sha {
 
 #[derive(Debug, Deserialize)]
 pub struct Commit {
-    sha: Sha,
-    commit: CommitDetail,
+    pub sha: Sha,
+    pub commit: CommitDetail,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CommitDetail {
-    author: PersonDetails,
-    committer: PersonDetails,
-    message: String,
-    verification: Verification,
+    pub author: PersonDetails,
+    pub committer: PersonDetails,
+    pub message: String,
+    pub verification: Verification,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PersonDetails {
-    name: String,
-    email: String,
-    date: DateTime<FixedOffset>,
+    pub name: String,
+    pub email: String,
+    pub date: DateTime<FixedOffset>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -61,10 +61,10 @@ pub enum Reason {
 
 #[derive(Debug, Deserialize)]
 pub struct Verification {
-    verified: bool,
-    reason: Reason,
-    signature: Option<String>,
-    payload: Option<String>,
+    pub verified: bool,
+    pub reason: Reason,
+    pub signature: Option<String>,
+    pub payload: Option<String>,
 }
 
 /// Parameters to filter the commits returned by GitHub
