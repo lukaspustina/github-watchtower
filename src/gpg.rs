@@ -48,6 +48,13 @@ impl CommitVerifier {
         CommitVerifier { pub_keys }
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Result<CommitVerifier> {
+        let tpk = TPK::from_bytes(bytes).map_err(|e| e.context(ErrorKind::FailedToLoadKey))?;
+        let keys = vec![tpk];
+
+        Ok(CommitVerifier::from_keys(keys))
+    }
+
     pub fn from_key_file<P: AsRef<Path>>(file_path: P) -> Result<CommitVerifier> {
         let tpk = TPK::from_file(file_path).map_err(|e| e.context(ErrorKind::FailedToLoadKey))?;
         let keys = vec![tpk];
@@ -161,10 +168,22 @@ mod tests {
     use spectral::prelude::*;
 
     #[test]
-    fn load_key() {
+    fn load_key_from_file() {
         test::init();
 
         let cv = CommitVerifier::from_key_file("tests/lukas.pustina.pub");
+
+        asserting("Valid key has been successfully loaded")
+            .that(&cv)
+            .is_ok();
+    }
+
+    #[test]
+    fn load_key_from_bytes() {
+        test::init();
+
+        let key_str = include_str!("../tests/lukas.pustina.pub");
+        let cv = CommitVerifier::from_bytes(key_str.as_ref());
 
         asserting("Valid key has been successfully loaded")
             .that(&cv)
