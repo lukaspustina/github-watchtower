@@ -1,0 +1,269 @@
+version: 2.1
+
+
+commands:
+  prepare:
+    description: "Prepare environment"
+    steps:
+      - run:
+          name: Install Clippy and Rustfmt
+          command: |
+            rustup component add clippy
+            rustup component add rustfmt
+      - run:
+          name: Install Native Libraries
+          command: |
+            echo "deb     http://ftp.de.debian.org/debian/    testing main contrib non-free" > /etc/apt/sources.list.d/testing.list
+            apt-get update
+            apt-get install -y libnettle6 nettle-dev clang libtinfo6
+      - run:
+          name: Check Versions
+          command: |
+            rustup --version
+            rustup toolchain list
+            rustc --version
+            cargo --version
+            cargo --list
+            cargo clippy --version && echo "Clippy installed"
+            cargo fmt --version && echo "Rustfmt installed"
+            clang --version
+      - persist_to_workspace:
+          root: /
+          paths:
+            - usr/local/rustup
+            - usr/lib
+            - usr/include
+  cargo:
+    description: "Run cargo command with specific Rust version"
+    parameters:
+      command:
+        type: string
+      options:
+        type: string
+        default: "--all --all-targets --all-features --examples --benches"
+      rust_channel:
+        type: string
+    steps:
+      - attach_workspace:
+          at: /
+      - checkout
+      - run:
+          name: Install Native Libraries
+          command: |
+            echo "deb     http://ftp.de.debian.org/debian/    testing main contrib non-free" > /etc/apt/sources.list.d/testing.list
+            apt-get update
+            apt-get install -y libnettle6 nettle-dev clang libtinfo6
+      - run:
+          name: Version information
+          command: |
+            rustup --version
+            rustup toolchain list
+            rustc --version
+            cargo --version
+            cargo --list
+            cargo clippy --version && echo "Clippy installed"
+            cargo fmt --version && echo "Rustfmt installed"
+            clang --version
+      - run:
+          name: Calculate dependencies
+          command: cargo generate-lockfile
+      - restore_cache:
+          keys:
+            - v1-cargo-cache-<< parameters.rust_channel >>-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Cargo << parameters.command >> << parameters.options >> with Rust version << parameters.rust_channel >>
+          command: cargo << parameters.command >> << parameters.options >>
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+          key: v1-cargo-cache-<< parameters.rust_channel >>-{{ arch }}-{{ checksum "Cargo.lock" }}
+
+
+aliases:
+  - &image-1-34
+    docker:
+      - image: rust:1.34
+  - &image-stable
+    docker:
+      - image: rust:latest
+  - &image-nightly
+    docker:
+      - image: rustlang/rust:nightly
+  - &jobs-check-build-test
+    - prepare-1-34
+    - fmt-1-34:
+        requires:
+          - prepare-1-34
+    - clippy-1-34:
+        requires:
+          - fmt-1-34
+    - check-1-34:
+        requires:
+          - clippy-1-34
+    - build-1-34:
+        requires:
+          - check-1-34
+    - test-1-34:
+        requires:
+          - build-1-34
+    - prepare-stable
+    - fmt-stable:
+        requires:
+          - prepare-stable
+    - clippy-stable:
+        requires:
+          - fmt-stable
+    - check-stable:
+        requires:
+          - clippy-stable
+    - build-stable:
+        requires:
+          - check-stable
+    - test-stable:
+        requires:
+          - build-stable
+    - prepare-nightly
+    - fmt-nightly:
+        requires:
+          - prepare-nightly
+    - clippy-nightly:
+        requires:
+          - fmt-nightly
+    - check-nightly:
+        requires:
+          - clippy-nightly
+    - build-nightly:
+        requires:
+          - check-nightly
+    - test-nightly:
+        requires:
+          - build-nightly
+
+
+jobs:
+  prepare-1-34:
+    <<: *image-1-34
+    steps:
+      - prepare
+  prepare-stable:
+    <<: *image-stable
+    steps:
+      - prepare
+  prepare-nightly:
+    <<: *image-nightly
+    steps:
+      - prepare
+  fmt-1-34:
+    <<: *image-1-34
+    steps:
+      - cargo:
+          command: fmt
+          options: "-- --check"
+          rust_channel: 1-34
+  fmt-stable:
+    <<: *image-stable
+    steps:
+      - cargo:
+          command: fmt
+          options: "-- --check"
+          rust_channel: stable
+  fmt-nightly:
+    <<: *image-nightly
+    steps:
+      - cargo:
+          command: fmt
+          options: "-- --check"
+          rust_channel: nightly
+  clippy-1-34:
+    <<: *image-1-34
+    steps:
+      - cargo:
+          command: clippy
+          rust_channel: 1-34
+  clippy-stable:
+    <<: *image-stable
+    steps:
+      - cargo:
+          command: clippy
+          rust_channel: stable
+  clippy-nightly:
+    <<: *image-nightly
+    steps:
+      - cargo:
+          command: clippy
+          rust_channel: nightly
+  check-1-34:
+    <<: *image-1-34
+    steps:
+      - cargo:
+          command: check
+          rust_channel: 1-34
+  check-stable:
+    <<: *image-stable
+    steps:
+      - cargo:
+          command: check
+          rust_channel: stable
+  check-nightly:
+    <<: *image-nightly
+    steps:
+      - cargo:
+          command: check
+          rust_channel: nightly
+  build-1-34:
+    <<: *image-1-34
+    steps:
+      - cargo:
+          command: build
+          rust_channel: 1-34
+  build-stable:
+    <<: *image-stable
+    steps:
+      - cargo:
+          command: build
+          rust_channel: stable
+  build-nightly:
+    <<: *image-nightly
+    steps:
+      - cargo:
+          command: build
+          rust_channel: nightly
+  test-1-34:
+    <<: *image-1-34
+    steps:
+      - cargo:
+          command: test
+          rust_channel: 1-34
+  test-stable:
+    <<: *image-stable
+    steps:
+      - cargo:
+          command: test
+          rust_channel: stable
+  test-nightly:
+    <<: *image-nightly
+    steps:
+      - cargo:
+          command: test
+          rust_channel: nightly
+
+
+workflows:
+  version: 2
+  check-build-test:
+    jobs:
+      *jobs-check-build-test
+  cron:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      *jobs-check-build-test
+
