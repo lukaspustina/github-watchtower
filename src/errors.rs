@@ -39,6 +39,9 @@ pub enum ErrorKind {
 
     #[fail(display = "failed to verify GPG signature because {}", _0)]
     FailedToVerify(String),
+
+    #[fail(display = "general error")]
+    GeneralError,
 }
 
 impl Clone for ErrorKind {
@@ -58,6 +61,7 @@ impl Clone for ErrorKind {
             FailedToLoadKey => FailedToLoadKey,
             FailedToCreateVerifier => FailedToCreateVerifier,
             FailedToVerify(ref reason) => FailedToVerify(reason.clone()),
+            GeneralError => GeneralError,
         }
     }
 }

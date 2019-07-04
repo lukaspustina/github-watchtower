@@ -52,5 +52,8 @@ _install:
 	rustup toolchain install nightly
 	rustup component add rustfmt --toolchain=nightly
 
+sha_config: tests/config.toml
+	shasum -a 256 $<
+
 .PHONY: 
 
