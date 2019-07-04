@@ -1,4 +1,5 @@
 use crate::{
+    config::GitHubWatchTowerConfig,
     errors::*,
     github::commits::{Commit, Reason, Verification},
 };
@@ -9,7 +10,7 @@ use openpgp::{
     TPK,
 };
 use sequoia_openpgp as openpgp;
-use std::path::Path;
+use std::{convert::TryFrom, path::Path};
 
 #[derive(Debug)]
 pub struct CommitVerifier {
@@ -45,9 +46,28 @@ impl From<TPK> for VerificationKey {
     }
 }
 
+impl TryFrom<&GitHubWatchTowerConfig> for CommitVerifier {
+    type Error = Error;
+    fn try_from(config: &GitHubWatchTowerConfig) -> Result<CommitVerifier> {
+        CommitVerifier::from_armored_keys(config.pub_keys.iter().map(|x| x.armored_key.as_ref()))
+    }
+}
+
 impl CommitVerifier {
     pub fn from_keys(pub_keys: Vec<TPK>) -> CommitVerifier {
         CommitVerifier { pub_keys }
+    }
+
+    pub fn from_armored_keys<'a, T: IntoIterator<Item = &'a str>>(
+        armored_keys: T,
+    ) -> Result<CommitVerifier> {
+        let pub_keys: ::std::result::Result<Vec<_>, _> = armored_keys
+            .into_iter()
+            .map(|x| TPK::from_bytes(x.as_bytes()))
+            .collect();
+        let pub_keys = pub_keys.map_err(|e| e.context(ErrorKind::FailedToLoadKey))?;
+
+        Ok(CommitVerifier { pub_keys })
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<CommitVerifier> {
@@ -183,8 +203,10 @@ mod tests {
     use super::*;
     use crate::{github::commits::*, utils::test};
 
+    use clams::config::Config;
     use log::debug;
     use spectral::prelude::*;
+    use std::convert::TryInto;
 
     #[test]
     fn load_key_from_file() {
@@ -205,6 +227,20 @@ mod tests {
         let cv = CommitVerifier::from_bytes(key_str.as_ref());
 
         asserting("Valid key has been successfully loaded")
+            .that(&cv)
+            .is_ok();
+    }
+
+    #[test]
+    fn from_config() {
+        test::init();
+
+        let config = GitHubWatchTowerConfig::from_file("tests/config.toml")
+            .expect("failed to load config file");
+
+        let cv: Result<CommitVerifier> = (&config).try_into();
+
+        asserting("Created CommitVerifier from Config")
             .that(&cv)
             .is_ok();
     }
