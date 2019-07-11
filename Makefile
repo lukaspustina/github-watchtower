@@ -55,8 +55,7 @@ _install:
 sha_config: tests/config.toml
 	shasum -a 256 $<
 
-#DOCKER_BUILD_IMAGE = ekidd/rust-musl-builder:stable
-DOCKER_BUILD_IMAGE = lukas:rust_musl
+DOCKER_BUILD_IMAGE = lukaspustina/rust_musl:stable
 RUN_DOCKER = docker run --rm -it -v "$$(pwd)":/home/rust/src -v "$$(pwd)/.cargo.cache/git":/home/rust/.cargo/git -v "$$(pwd)/.cargo.cache/registry":/home/rust/.cargo/registry $(DOCKER_BUILD_IMAGE)
 RUN_DOCKER = docker run --rm -it -v "$$(pwd)":/home/rust/src -v "$$(pwd)/.cargo.cache/git":/home/rust/.cargo/git -v "$$(pwd)/.cargo.cache/registry":/home/rust/.cargo/registry $(DOCKER_BUILD_IMAGE)
 FUNC_NAME = github-watchtower
@@ -64,7 +63,6 @@ FUNC_NAME_BIN = github-watchtower
 
 .cargo.cache/git:
 	mkdir -p $@
-	#docker run --rm -it -v "$$(pwd)/..":/home/rust/src -v "$$(pwd)/.cargo.cache/git":/home/rust/.cargo/git $(DOCKER_BUILD_IMAGE) sudo chown -R rust:rust /home/rust/.cargo/git
 	$(RUN_DOCKER) sudo chown -R rust:rust /home/rust/.cargo/git
 
 .cargo.cache/registry:
