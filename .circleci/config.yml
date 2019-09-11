@@ -152,10 +152,6 @@ jobs:
     <<: *image-stable
     steps:
       - prepare
-  prepare-nightly:
-    <<: *image-nightly
-    steps:
-      - prepare
   fmt-1-34:
     <<: *image-1-34
     steps:
@@ -170,13 +166,6 @@ jobs:
           command: fmt
           options: "-- --check"
           rust_channel: stable
-  fmt-nightly:
-    <<: *image-nightly
-    steps:
-      - cargo:
-          command: fmt
-          options: "-- --check"
-          rust_channel: nightly
   clippy-1-34:
     <<: *image-1-34
     steps:
@@ -189,12 +178,6 @@ jobs:
       - cargo:
           command: clippy
           rust_channel: stable
-  clippy-nightly:
-    <<: *image-nightly
-    steps:
-      - cargo:
-          command: clippy
-          rust_channel: nightly
   check-1-34:
     <<: *image-1-34
     steps:
@@ -207,12 +190,6 @@ jobs:
       - cargo:
           command: check
           rust_channel: stable
-  check-nightly:
-    <<: *image-nightly
-    steps:
-      - cargo:
-          command: check
-          rust_channel: nightly
   build-1-34:
     <<: *image-1-34
     steps:
@@ -225,12 +202,6 @@ jobs:
       - cargo:
           command: build
           rust_channel: stable
-  build-nightly:
-    <<: *image-nightly
-    steps:
-      - cargo:
-          command: build
-          rust_channel: nightly
   test-1-34:
     <<: *image-1-34
     steps:
@@ -243,12 +214,6 @@ jobs:
       - cargo:
           command: test
           rust_channel: stable
-  test-nightly:
-    <<: *image-nightly
-    steps:
-      - cargo:
-          command: test
-          rust_channel: nightly
 
 
 workflows:
