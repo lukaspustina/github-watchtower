@@ -4,6 +4,7 @@ use reqwest;
 
 pub mod commits;
 pub mod endpoints;
+mod link;
 
 pub use commits::Commit;
 pub use endpoints::Endpoints;
