@@ -111,7 +111,7 @@ fn github_commits_since() {
         .since(DateTime::parse_from_rfc2822("Wed, 26 Jun 2019 09:36:26 +0200").unwrap());
     let since_commits = client
         .commits(&repository, params)
-        .expect("Failed to retrieve commits from 'Wed Jun 26 09:36:26 2019 +0200'");
+        .expect("Failed to retrieve commits from 'Wed, Jun 26 09:36:26 2019 +0200'");
     let diff = all_commits.len() - since_commits.len();
 
     asserting("number of commits is less than total number")
