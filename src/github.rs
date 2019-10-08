@@ -12,6 +12,7 @@ pub use endpoints::Endpoints;
 use commits::Params;
 
 static GITHUB_ACCEPT_HEADER: &[u8] = b"Accept: application/vnd.github.v3+json";
+static GITHUB_LINK_HEADER_NAME: &str = "Link";
 
 #[derive(Debug)]
 pub struct Client {}

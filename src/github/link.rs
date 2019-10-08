@@ -22,20 +22,43 @@ impl<'a> Default for Links<'a> {
 impl<'a> TryFrom<&'a str> for Links<'a> {
     type Error = String;
 
-    fn try_from(value: &'a str) -> Result<Self, Self::Error>  {
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         let parser_res = parser::links(&value);
         let links = match parser_res {
             Ok((reminder, ref links)) if reminder.is_empty() => Ok(links),
-            Ok((ref reminder, _)) => Err(format!("Link header could not be fully parsed: '{}'", reminder)),
+            Ok((ref reminder, _)) => Err(format!(
+                "Link header could not be fully parsed: '{}'",
+                reminder
+            )),
             Err(err) => Err(format!("Link header could not be parsed because {:?}", err)),
         }?;
         let mut res = Links::default();
         for l in links {
             match l.dir {
-                parser::Direction::First => res = Links { first: Some(l.url), ..res },
-                parser::Direction::Prev  => res = Links { prev: Some(l.url), ..res },
-                parser::Direction::Next => res = Links { next: Some(l.url), ..res },
-                parser::Direction::Last => res = Links { last: Some(l.url), ..res },
+                parser::Direction::First => {
+                    res = Links {
+                        first: Some(l.url),
+                        ..res
+                    }
+                }
+                parser::Direction::Prev => {
+                    res = Links {
+                        prev: Some(l.url),
+                        ..res
+                    }
+                }
+                parser::Direction::Next => {
+                    res = Links {
+                        next: Some(l.url),
+                        ..res
+                    }
+                }
+                parser::Direction::Last => {
+                    res = Links {
+                        last: Some(l.url),
+                        ..res
+                    }
+                }
             }
         }
 
@@ -54,10 +77,26 @@ mod tests {
         let value = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>; rel="last", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=1>; rel="first", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>; rel="prev""#;
         let res = Links::try_from(value);
 
-        asserting("First link is set").that(&res).is_ok().map(|val| &val.first).is_some();
-        asserting("Prev link is set").that(&res).is_ok().map(|val| &val.prev).is_some();
-        asserting("Next link is set").that(&res).is_ok().map(|val| &val.next).is_some();
-        asserting("Last link is set").that(&res).is_ok().map(|val| &val.last).is_some();
+        asserting("First link is set")
+            .that(&res)
+            .is_ok()
+            .map(|val| &val.first)
+            .is_some();
+        asserting("Prev link is set")
+            .that(&res)
+            .is_ok()
+            .map(|val| &val.prev)
+            .is_some();
+        asserting("Next link is set")
+            .that(&res)
+            .is_ok()
+            .map(|val| &val.next)
+            .is_some();
+        asserting("Last link is set")
+            .that(&res)
+            .is_ok()
+            .map(|val| &val.last)
+            .is_some();
     }
 }
 
@@ -70,14 +109,14 @@ mod parser {
     */
 
     use nom::{
-        IResult,
         bytes::complete::{tag, take_until},
         combinator::map_res,
         multi::separated_list,
         sequence::{delimited, separated_pair},
+        IResult,
     };
     use std::convert::TryFrom;
-  
+
     #[derive(Debug, PartialEq, Eq)]
     pub struct Link<'a> {
         pub url: &'a str,
@@ -87,15 +126,10 @@ mod parser {
     impl<'a> TryFrom<(&'a str, Direction)> for Link<'a> {
         type Error = &'static str;
 
-        fn try_from(value: (&'a str, Direction)) -> Result<Self, Self::Error>  {
+        fn try_from(value: (&'a str, Direction)) -> Result<Self, Self::Error> {
             let (url, dir) = value;
 
-            Ok(
-                Link {
-                    url,
-                    dir,
-                }
-            )
+            Ok(Link { url, dir })
         }
     }
 
@@ -116,7 +150,7 @@ mod parser {
                 "prev" => Ok(Self::Prev),
                 "next" => Ok(Self::Next),
                 "last" => Ok(Self::Last),
-                _ => Err("unexpected link direction")
+                _ => Err("unexpected link direction"),
             }
         }
     }
@@ -126,10 +160,7 @@ mod parser {
     }
 
     fn link(input: &str) -> IResult<&str, Link> {
-        map_res(
-            separated_pair(url, tag("; "), dir),
-            Link::try_from
-        )(input)
+        map_res(separated_pair(url, tag("; "), dir), Link::try_from)(input)
     }
 
     fn url(input: &str) -> IResult<&str, &str> {
@@ -139,7 +170,7 @@ mod parser {
     fn dir(input: &str) -> IResult<&str, Direction> {
         map_res(
             delimited(tag("rel=\""), take_until("\""), tag("\"")),
-            Direction::try_from
+            Direction::try_from,
         )(input)
     }
 
@@ -164,21 +195,23 @@ mod parser {
         fn link_ok() {
             let input = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next""#;
             let res = link(input);
-            asserting("Parsing link-dir")
-                .that(&res)
-                .is_equal_to(Ok(("", Link { 
+            asserting("Parsing link-dir").that(&res).is_equal_to(Ok((
+                "",
+                Link {
                     url: "https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15",
-                    dir: Direction::Next
-                })))
+                    dir: Direction::Next,
+                },
+            )))
         }
 
         #[test]
         fn url_ok() {
             let input = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>"#;
             let res = url(input);
-            asserting("Parsing link")
-                .that(&res)
-                .is_equal_to(Ok(("", "https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13")))
+            asserting("Parsing link").that(&res).is_equal_to(Ok((
+                "",
+                "https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13",
+            )))
         }
 
         #[test]

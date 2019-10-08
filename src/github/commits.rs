@@ -1,6 +1,9 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, OAuthToken, Repository, GITHUB_ACCEPT_HEADER, GITHUB_LINK_HEADER_NAME, link::Links},
+    github::{
+        link::Links, AuthorizedClient, OAuthToken, Repository, GITHUB_ACCEPT_HEADER,
+        GITHUB_LINK_HEADER_NAME,
+    },
     utils::http::GeneralErrHandler,
 };
 
@@ -9,8 +12,7 @@ use failure::Fail;
 use log::{debug, trace};
 use reqwest::{self, header, Response, StatusCode};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::{collections::HashMap, convert::TryFrom};
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Sha(String);
@@ -218,7 +220,7 @@ fn do_commits(
             trace!("Following next header: '{}'", next_link);
             response = get_commits(&client, next_link, query_params.as_ref(), &token)?;
         } else {
-            break
+            break;
         }
     }
 
@@ -250,18 +252,19 @@ fn get_commits(
 
 fn next_link(response: &Response) -> Result<Option<&str>> {
     if let Some(link_header_value) = response.headers().get(GITHUB_LINK_HEADER_NAME) {
-        let value_str = link_header_value.to_str()
-            .map_err(|e|
-                e.context(ErrorKind::FailedToProcessHttpResponse(response.status(), "reading Link header".to_string())))?;
-        return Links::try_from(value_str)
-            .map(|l| l.next)
-            .map_err(|e| Error::from(
-                ErrorKind::FailedToProcessHttpResponse(response.status(), e)))
+        let value_str = link_header_value.to_str().map_err(|e| {
+            e.context(ErrorKind::FailedToProcessHttpResponse(
+                response.status(),
+                "reading Link header".to_string(),
+            ))
+        })?;
+        return Links::try_from(value_str).map(|l| l.next).map_err(|e| {
+            Error::from(ErrorKind::FailedToProcessHttpResponse(response.status(), e))
+        });
     }
 
     Ok(None)
 }
-
 
 #[cfg(test)]
 mod tests {
