@@ -1,19 +1,74 @@
+use std::convert::TryFrom;
 
-/*
- * Link: <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next",
-  <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>; rel="last",
-  <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=1>; rel="first",
-  <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>; rel="prev"
-*/
-
+#[derive(Debug)]
 pub struct Links<'a> {
-    first: Option<&'a str>,
-    prev: Option<&'a str>,
-    next: Option<&'a str>,
-    last: Option<&'a str>,
+    pub first: Option<&'a str>,
+    pub prev: Option<&'a str>,
+    pub next: Option<&'a str>,
+    pub last: Option<&'a str>,
+}
+
+impl<'a> Default for Links<'a> {
+    fn default() -> Self {
+        Links {
+            first: None,
+            prev: None,
+            next: None,
+            last: None,
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a str> for Links<'a> {
+    type Error = String;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error>  {
+        let parser_res = parser::links(&value);
+        let links = match parser_res {
+            Ok((reminder, ref links)) if reminder.is_empty() => Ok(links),
+            Ok((ref reminder, _)) => Err(format!("Link header could not be fully parsed: '{}'", reminder)),
+            Err(err) => Err(format!("Link header could not be parsed because {:?}", err)),
+        }?;
+        let mut res = Links::default();
+        for l in links {
+            match l.dir {
+                parser::Direction::First => res = Links { first: Some(l.url), ..res },
+                parser::Direction::Prev  => res = Links { prev: Some(l.url), ..res },
+                parser::Direction::Next => res = Links { next: Some(l.url), ..res },
+                parser::Direction::Last => res = Links { last: Some(l.url), ..res },
+            }
+        }
+
+        Ok(res)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use spectral::prelude::*;
+
+    #[test]
+    fn parse_link_header_value() {
+        let value = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>; rel="last", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=1>; rel="first", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>; rel="prev""#;
+        let res = Links::try_from(value);
+
+        asserting("First link is set").that(&res).is_ok().map(|val| &val.first).is_some();
+        asserting("Prev link is set").that(&res).is_ok().map(|val| &val.prev).is_some();
+        asserting("Next link is set").that(&res).is_ok().map(|val| &val.next).is_some();
+        asserting("Last link is set").that(&res).is_ok().map(|val| &val.last).is_some();
+    }
 }
 
 mod parser {
+    /*
+    Link: <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next",
+    <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>; rel="last",
+    <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=1>; rel="first",
+    <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>; rel="prev"
+    */
+
     use nom::{
         IResult,
         bytes::complete::{tag, take_until},
@@ -24,9 +79,9 @@ mod parser {
     use std::convert::TryFrom;
   
     #[derive(Debug, PartialEq, Eq)]
-    struct Link<'a> {
-        url: &'a str,
-        dir: Direction,
+    pub struct Link<'a> {
+        pub url: &'a str,
+        pub dir: Direction,
     }
 
     impl<'a> TryFrom<(&'a str, Direction)> for Link<'a> {
@@ -45,7 +100,7 @@ mod parser {
     }
 
     #[derive(Debug, PartialEq, Eq)]
-    enum Direction {
+    pub enum Direction {
         First,
         Prev,
         Next,
@@ -66,18 +121,18 @@ mod parser {
         }
     }
 
-    fn link_dirs(input: &str) -> IResult<&str, Vec<Link>> {
-        separated_list(tag(", "), link_dir)(input)
+    pub fn links(input: &str) -> IResult<&str, Vec<Link>> {
+        separated_list(tag(", "), link)(input)
     }
 
-    fn link_dir(input: &str) -> IResult<&str, Link> {
+    fn link(input: &str) -> IResult<&str, Link> {
         map_res(
-            separated_pair( link, tag("; "), dir),
+            separated_pair(url, tag("; "), dir),
             Link::try_from
         )(input)
     }
 
-    fn link(input: &str) -> IResult<&str, &str> {
+    fn url(input: &str) -> IResult<&str, &str> {
         delimited(tag("<"), take_until(">"), tag(">"))(input)
     }
 
@@ -95,9 +150,9 @@ mod parser {
         use spectral::prelude::*;
 
         #[test]
-        fn link_dirs_ok() {
+        fn links_ok() {
             let input = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>; rel="last", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=1>; rel="first", <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>; rel="prev""#;
-            let res = link_dirs(input);
+            let res = links(input);
             asserting("Parsing link-dirs")
                 .that(&res)
                 .is_ok()
@@ -106,9 +161,9 @@ mod parser {
         }
 
         #[test]
-        fn link_dir_ok() {
+        fn link_ok() {
             let input = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=15>; rel="next""#;
-            let res = link_dir(input);
+            let res = link(input);
             asserting("Parsing link-dir")
                 .that(&res)
                 .is_equal_to(Ok(("", Link { 
@@ -118,9 +173,9 @@ mod parser {
         }
 
         #[test]
-        fn link_ok() {
+        fn url_ok() {
             let input = r#"<https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13>"#;
-            let res = link(input);
+            let res = url(input);
             asserting("Parsing link")
                 .that(&res)
                 .is_equal_to(Ok(("", "https://api.github.com/search/code?q=addClass+user%3Amozilla&page=13")))

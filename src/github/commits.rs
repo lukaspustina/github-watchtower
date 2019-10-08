@@ -1,15 +1,16 @@
 use crate::{
     errors::*,
-    github::{AuthorizedClient, OAuthToken, Repository, GITHUB_ACCEPT_HEADER},
+    github::{AuthorizedClient, OAuthToken, Repository, GITHUB_ACCEPT_HEADER, GITHUB_LINK_HEADER_NAME, link::Links},
     utils::http::GeneralErrHandler,
 };
 
 use chrono::{DateTime, FixedOffset};
 use failure::Fail;
-use log::debug;
+use log::{debug, trace};
 use reqwest::{self, header, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Sha(String);
@@ -201,29 +202,66 @@ fn do_commits(
         repository = repository.name
     );
 
+    let mut commits: Vec<Commit> = Vec::new();
+
+    let mut response = get_commits(&client, &url, query_params.as_ref(), &token)?;
+    loop {
+        let result: Vec<Commit> = response.json().map_err(|e| {
+            e.context(ErrorKind::FailedToProcessHttpResponse(
+                response.status(),
+                "reading body".to_string(),
+            ))
+        })?;
+        commits.extend(result);
+
+        if let Some(next_link) = next_link(&response)? {
+            trace!("Following next header: '{}'", next_link);
+            response = get_commits(&client, next_link, query_params.as_ref(), &token)?;
+        } else {
+            break
+        }
+    }
+
+    Ok(commits)
+}
+
+fn get_commits(
+    client: &AuthorizedClient,
+    url: &str,
+    query_params: Option<&HashMap<&'static str, String>>,
+    token: &str,
+) -> Result<Response> {
     let request = client
         .http
-        .get(&url)
+        .get(url)
         .query(&query_params)
         .header(header::ACCEPT, GITHUB_ACCEPT_HEADER)
         .bearer_auth(token);
     debug!("Request: '{:#?}'", request);
 
-    let mut response: Response = request
+    let response: Response = request
         .send()
         .map_err(|e| e.context(ErrorKind::HttpRequestFailed))?
         .general_err_handler(StatusCode::OK)?;
     debug!("Response: '{:#?}'", response);
 
-    let result: Vec<Commit> = response.json().map_err(|e| {
-        e.context(ErrorKind::FailedToProcessHttpResponse(
-            response.status(),
-            "reading body".to_string(),
-        ))
-    })?;
-
-    Ok(result)
+    Ok(response)
 }
+
+fn next_link(response: &Response) -> Result<Option<&str>> {
+    if let Some(link_header_value) = response.headers().get(GITHUB_LINK_HEADER_NAME) {
+        let value_str = link_header_value.to_str()
+            .map_err(|e|
+                e.context(ErrorKind::FailedToProcessHttpResponse(response.status(), "reading Link header".to_string())))?;
+        return Links::try_from(value_str)
+            .map(|l| l.next)
+            .map_err(|e| Error::from(
+                ErrorKind::FailedToProcessHttpResponse(response.status(), e)))
+    }
+
+    Ok(None)
+}
+
 
 #[cfg(test)]
 mod tests {
