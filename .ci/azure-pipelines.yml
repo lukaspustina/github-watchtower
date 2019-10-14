@@ -1,0 +1,161 @@
+name: $(Build.sourceBranchName)-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: ['*']
+  tags:
+    include: ['v*']
+
+schedules:
+  - cron: "0 0 * * *"
+    displayName: Daily midnight build
+    branches:
+      include:
+      - master
+
+stages:
+  #  - stage: Check_n_Test
+  #    displayName: "Check and Test"
+  #    jobs:
+  #      - job: Fmt
+  #        strategy:
+  #          matrix:
+  #            linux-stable:
+  #              imageName: 'ubuntu-18.04'
+  #              rustup_toolchain: stable
+  #        pool:
+  #          vmImage: $(imageName)
+  #        steps:
+  #          - template: templates/install_rust.yml
+  #          - template: templates/version_information.yml
+  #          - script: cargo fmt --all -- --check
+  #            displayName: Run Fmt
+  #
+  #      - job: Audit
+  #        strategy:
+  #          matrix:
+  #            linux-stable:
+  #              imageName: 'ubuntu-18.04'
+  #              rustup_toolchain: stable
+  #        pool:
+  #          vmImage: $(imageName)
+  #        steps:
+  #          - template: templates/install_rust.yml
+  #          - template: templates/install_dependencies.yml
+  #          - script: cargo install cargo-audit
+  #            displayName: Install Cargo Audit
+  #          - template: templates/version_information.yml
+  #          - script: cargo audit
+  #            displayName: Run Cargo Audit
+  #
+  #      - job: Clippy
+  #        strategy:
+  #          matrix:
+  #            linux-stable:
+  #              imageName: 'ubuntu-18.04'
+  #              rustup_toolchain: stable
+  #        pool:
+  #          vmImage: $(imageName)
+  #        steps:
+  #          - template: templates/install_rust.yml
+  #          - template: templates/install_dependencies.yml
+  #          - template: templates/version_information.yml
+  #          - script: cargo clippy --all --all-targets --all-features -- -D warnings $(source ".clippy.args")
+  #            displayName: Run Clippy
+  #
+  #      - job: 'Build_n_Test'
+  #        displayName: "Build and Test"
+  #        strategy:
+  #          matrix:
+  #            linux-minimum:
+  #              imageName: 'ubuntu-18.04'
+  #              rustup_toolchain: 1.37.0
+  #            linux-stable:
+  #              imageName: 'ubuntu-18.04'
+  #              rustup_toolchain: stable
+  #            linux-beta:
+  #              imageName: 'ubuntu-18.04'
+  #              rustup_toolchain: beta
+  #        pool:
+  #          vmImage: $(imageName)
+  #        steps:
+  #          - template: templates/install_rust.yml
+  #            parameters:
+  #              rustup_toolchain: $(rustup_toolchain)
+  #          - template: templates/install_dependencies.yml
+  #          - template: templates/version_information.yml
+  #          - script: cargo build --all --tests --examples --benches
+  #            displayName: Cargo build
+  #          - script: cargo test --all
+  #            displayName: Cargo test
+  #
+  - stage: Build_Release
+    displayName: "Build Release"
+    #    dependsOn: Check_n_Test
+    jobs:
+      - job: 'Build_Static_Binary'
+        displayName: "Build Static Binary"
+        pool:
+          # Other pools are currently (2019-10-14) not supported
+          vmImage: 'ubuntu-16.04'
+        container:
+          image: lukaspustina/rust_musl:stable
+          # Required, because Azure is going to add a user which requires root privileges
+          options: --user 0:0
+        steps:
+          # The Docker Image already includes a rustup installation but for user 'rust'. Since Azure uses its own user (cf. above), we install it again.
+          - template: templates/install_rust.yml
+          - template: templates/version_information.yml
+            # - script: |
+            #   cd $BUILD_SOURCESDIRECTORY && \
+            #   cargo build --package github-watchtower --release && \
+            #   ls -al target/release/github-watchtower && \
+            #   echo "##vso[task.setvariable variable=release_binary]target/release/github-watchtower"
+          - script: |
+              cd $BUILD_SOURCESDIRECTORY && \
+              mkdir -p target/release && \
+              touch target/release/github-watchtower && \
+              ls -al target/release/github-watchtower && \
+              echo "##vso[task.setvariable variable=release_binary]target/release/github-watchtower"
+            displayName: MUSL Cargo Build
+          - publish: $(Build.SourcesDirectory)/$(release_binary)
+            artifact: Release_Binary
+            displayName: Storing Release Binary
+
+  - stage: Publish_Release
+    displayName: "Publish Release"
+    dependsOn: Build_Release
+    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
+    jobs:
+      - job: 'Publish_To_GitHub'
+        displayName: "Publish to GitHub"
+        steps:
+          # Shortcut 'download' cannot be used as it does not restore into the original path; cf. https://docs.microsoft.com/en-us/azure/devops/pipelines/artifacts/pipeline-artifacts?view=azure-devops&tabs=yaml#downloading-artifacts
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'Release_Binary'
+              targetPath: '$(Build.BinariesDirectory)' 
+          - script: |
+              ls -al $BUILD_BINARIESDIRECTORY/github-watchtower && \
+              RELEASE_BINARY="$BUILD_BINARIESDIRECTORY/github-watchtower-$AGENT_OSARCHITECTURE-musl-static" && \
+              mv $BUILD_BINARIESDIRECTORY/github-watchtower $RELEASE_BINARY && \
+              ls $RELEASE_BINARY && \
+              echo "##vso[task.setvariable variable=release_binary]$RELEASE_BINARY"
+          - task: GitHubRelease@1
+            displayName: "Creating GitHub Release"
+            inputs:
+              gitHubConnection: 'lukaspustina-releaseupload'
+              repositoryName: '$(Build.Repository.Name)' 
+              #              target: '$(Build.SourceVersion)'
+              #              tagSource: 'auto'
+              #              tagPattern: 'v*'
+              #              tag: $(tagName)
+              assets: |
+                '$(release_binary)'
+              #              assetUploadMode: 'delete'
+              #              isDraft: false
+              #              isPreRelease: true
+              #              addChangeLog: true
+              #              compareWith: 'lastFullRelease'
+
